@@ -8,86 +8,115 @@
 import Foundation
 
 func Bridges() {
-  let dx = [0, 0, 1, -1]
-  let dy = [1, -1, 0, 0]
-  
-  let n = Int(readLine()!)!
-  var group = [[Int]](repeating: [Int](repeating: 0, count: n), count: n)
-  var distance = [[Int]](repeating: [Int](repeating: -1, count: n), count: n)
-  var inputMap = [[Int]]()
-  
-  for _ in 0..<n {
-    inputMap.append(readLine()!.split(separator: " ").map { Int($0)! })
-  }
-  
-  /// Labeling groups
-  var count = 0
-  for i in 0..<n {
-    for j in 0..<n {
-      if inputMap[i][j] == 1 && group[i][j] == 0 {
-        count += 1
-        group[i][j] = count
-        let q = Queue<(Int, Int)>()
-        q.enqueue(item: (i, j))
+    struct Square {
+        let x: Int
+        let y: Int
+        let length: Int
+    }
+    
+    let dx = [0, 0, 1, -1]
+    let dy = [1, -1, 0, 0]
+    
+    let N = Int(readLine()!)!
+    
+    var finalBridgeLength = 2 * N
+    
+    var map = [[Int]]()
+    var coloredMap = [[Int]](repeating: [Int](repeating: 0, count: N), count: N)
+    
+    for _ in 0..<N {
+        let row: [Int] = readLine()!.split(separator: " ").map { Int($0)! }
+        map.append(row)
+    }
+    
+    func createColoredMap(square: Square, id: Int) {
+        let q = Queue<Square>()
+        q.enqueue(item: square)
+        coloredMap[square.y][square.x] = id
+        
         while !q.isEmpty() {
-          let (x, y) = q.dequeue()!
-          for k in 0..<4 {
-            let nx = x + dx[k]
-            let ny = y + dy[k]
-            if nx >= 0 && nx < n && ny >= 0 && ny < n {
-              if inputMap[nx][ny] == 1 && group[nx][ny] == 0 {
-                group[nx][ny] = count
-                q.enqueue(item: (nx, ny))
-              }
+            let sq = q.dequeue()!
+            let x = sq.x
+            let y = sq.y
+            let length = sq.length
+            for i in 0..<4 {
+                let nx = x + dx[i]
+                let ny = y + dy[i]
+                // check the bounds
+                if nx >= 0 && nx < N && ny >= 0 && ny < N {
+                    if (map[ny][nx] == 1 && coloredMap[ny][nx] == 0) {
+                        q.enqueue(item: Square(x: nx, y: ny, length: length))
+                        coloredMap[ny][nx] = id
+                    }
+                }
             }
-          }
         }
-      }
     }
-  }
-  
-  /// Marking distance
-  let q = Queue<(Int, Int)>()
-  for i in 0..<n {
-    for j in 0..<n {
-      if inputMap[i][j] == 1 {
-        q.enqueue(item: (i, j))
-        distance[i][j] = 0
-      }
-    }
-  }
-  
-  /// Land extension
-  while !q.isEmpty() {
-    let (x, y) = q.dequeue()!
-    for k in 0..<4 {
-      let nx = x + dx[k]
-      let ny = y + dy[k]
-      if nx >= 0 && nx < n && ny >= 0 && ny < n {
-        if distance[nx][ny] == -1 {
-          distance[nx][ny] = distance[x][y] + 1
-          group[nx][ny] = group[x][y]
-          q.enqueue(item: (nx, ny))
+    
+    var id = 0
+    for y in 0..<N {
+        for x in 0..<N {
+            if map[y][x] == 1 && coloredMap[y][x] == 0 {
+                id += 1
+                createColoredMap(square: Square(x: x, y: y, length: 0), id: id)
+            }
         }
-      }
     }
-  }
-  
-  /// Get the minimum
-  var answer = Int.max
-  for i in 0..<n {
-    for j in 0..<n {
-      for k in 0..<4 {
-        let x = i + dx[k]
-        let y = j + dy[k]
-        if x >= 0 && x < n && y >= 0 && y < n {
-          if group[i][j] != group[x][y] {
-            answer = min(answer, distance[i][j] + distance[x][y])
-          }
+    
+    func bridgeLength(square: Square) {
+        let q = Queue<Square>()
+        q.enqueue(item: square)
+        let islandID = coloredMap[square.y][square.x]
+        
+        var shortestLength = 2 * N
+        
+        while !q.isEmpty() {
+            var duplicatedColoredMap = [[Int]](repeating: [Int](repeating: 0, count: N), count: N)
+            for y in 0..<coloredMap.count {
+                for x in 0..<coloredMap[y].count {
+                    duplicatedColoredMap[y][x] = coloredMap[y][x]
+                }
+            }
+            let sq = q.dequeue()!
+            let x = sq.x
+            let y = sq.y
+            let length = sq.length
+            if length > finalBridgeLength {
+                break
+            }
+            
+            for i in 0..<4 {
+                let nx = x + dx[i]
+                let ny = y + dy[i]
+                // check the bounds
+                if nx >= 0 && nx < N && ny >= 0 && ny < N {
+                    if duplicatedColoredMap[ny][nx] == 0 {
+                        q.enqueue(item: Square(x: nx, y: ny, length: length + 1))
+                        duplicatedColoredMap[ny][nx] = -1
+                    } else if duplicatedColoredMap[ny][nx] == -1 {
+                       continue
+                    } else if duplicatedColoredMap[ny][nx] != islandID {
+                        if length < shortestLength {
+                            shortestLength = length
+                        }
+                        if shortestLength < finalBridgeLength {
+                            finalBridgeLength = shortestLength
+                        }
+                        break
+                    } else if duplicatedColoredMap[ny][nx] == islandID{
+                        continue
+                    }
+                }
+            }
         }
-      }
     }
-  }
-  
-  print(answer)
+    
+    for y in 0..<N {
+        for x in 0..<N {
+            if coloredMap[y][x] != 0 {
+                bridgeLength(square: Square(x: x, y: y, length: 0))
+            }
+        }
+    }
+    print(finalBridgeLength)
 }
